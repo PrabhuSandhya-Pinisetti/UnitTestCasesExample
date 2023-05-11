@@ -1,0 +1,106 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.sonarqube'
+    id 'jacoco'
+}
+
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+tasks.register('codeCoverage', JacocoReport) {
+    dependsOn 'testDebugUnitTest', 'createDebugCoverageReport'
+    reports {
+        html.required.set(true)
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco')
+        xml.required.set(true) // It's required for Sonar
+        xml.outputLocation.set(file("${project.buildDir}/reports/jacoco/jacoco.xml"))
+    }
+
+    def mainSrc = "${project.projectDir}/src/main/java"
+    def kotlinTree = fileTree(
+            dir: "$project.buildDir/tmp/kotlin-classes/debug",
+            excludes: [
+                    '**/BuildConfig.*',
+                    '**/*$*',
+                    '**/Hilt_*.class',
+                    'hilt_**',
+                    'dagger/hilt/**',
+                    '**/*JsonAdapter.*'])
+
+    sourceDirectories.from = file(mainSrc)
+    classDirectories.from = files(kotlinTree)
+    executionData.from = fileTree(dir: project.buildDir, includes: [
+            '**/*.exec', // unit tests
+            '**/*.ec', // ui tests
+    ])
+}
+
+tasks.withType(Test) {
+    jacoco {
+        includeNoLocationClasses = true
+        excludes = ['jdk.internal.*'] // Java compatibility
+    }
+}
+
+android {
+    namespace 'com.example.unittestcasesexample'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.example.unittestcasesexample"
+        minSdk 24
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    testOptions {
+        reportDir "$project.buildDir/reports/coverage/androidTest/debug/connected"
+        // It's required for Sonar
+    }
+    buildTypes {
+        debug{
+            testCoverageEnabled true
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+
+
+
+sonarqube {
+    properties {
+        property "sonar.projectName", "UnitTestCasesExample"
+        property "sonar.projectKey", "UnitTestCasesExample"
+        property "sonar.host.url", "http://13.84.43.157:9000/"
+        property "sonar.token","sqp_4a4ef131efdc8a55b6d377f1df1d23130b32717f"
+        property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/jacoco.xml"
+    }
+
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    testImplementation 'com.google.truth:truth:1.0.1'
+    androidTestImplementation 'com.google.truth:truth:1.0.1'
+}
